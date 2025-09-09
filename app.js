@@ -97,6 +97,34 @@ const App = (() => {
       }
       return out;
     }
+    ,
+    /**
+     * Calcula el orden de acción preflop a partir del botón. En
+     * preflop, actúa primero el jugador a la izquierda de la big blind
+     * (UTG) y continúan en sentido horario hasta la big blind. El orden
+     * devuelto incluye todas las posiciones activas empezando por UTG.
+     *
+     * @param {number[]} active - array de índices de asientos activos
+     * @param {number} btnSeat - índice del asiento con el botón
+     * @returns {number[]} array de índices de asientos en orden de acción preflop
+     */
+    preflopOrder: (active, btnSeat) => {
+      const seatsSorted = active.slice().sort((a, b) => a - b);
+      const n = seatsSorted.length;
+      if (n === 0) return [];
+      // Determinar small blind y big blind según el botón
+      const iBtn = seatsSorted.indexOf(btnSeat);
+      const sbSeat = seatsSorted[(iBtn + 1) % n];
+      const bbSeat = seatsSorted[(iBtn + 2) % n];
+      // El UTG es el asiento a la izquierda de la big blind
+      let utgIdx = seatsSorted.indexOf(bbSeat) + 1;
+      if (utgIdx >= n) utgIdx -= n;
+      const order = [];
+      for (let k = 0; k < n; k++) {
+        order.push(seatsSorted[(utgIdx + k) % n]);
+      }
+      return order;
+    }
   };
 
   /**
@@ -115,22 +143,36 @@ const App = (() => {
   function generateActions(active) {
     const actions = Array(10).fill('');
     if (active.length === 0) return actions;
-    // Ordenar asientos activos por índice para aproximar el orden de juego.
-    const seatsSorted = active.slice().sort((a, b) => a - b);
-    // Elegir al azar el asiento que hace OR.
-    const orSeat = seatsSorted[U.randInt(0, seatsSorted.length - 1)];
+    // Obtener orden de acción preflop basado en el botón para evitar incoherencias.
+    const order = U.preflopOrder(active, state.btnSeat);
+    const n = order.length;
+    if (n === 0) return actions;
+    // Evitar asignar OR a las ciegas (últimos dos en el orden preflop). Seleccionamos
+    // entre las primeras posiciones en el orden (excluyendo SB y BB) y que tengan al menos un
+    // asiento detrás para poder recibir respuesta. En heads-up y 3-handed se permite
+    // seleccionar únicamente la primera posición.
+    let candidateOrIndices = [];
+    for (let i = 0; i < n; i++) {
+      // No considerar los dos últimos asientos (sb y bb) como OR; además, debe haber alguien detrás.
+      if (i < n - 2) {
+        candidateOrIndices.push(i);
+      }
+    }
+    if (candidateOrIndices.length === 0) {
+      // Si no hay suficientes jugadores (e.g. 2 o 3) elegimos el primer asiento.
+      candidateOrIndices = [0];
+    }
+    const orIdx = candidateOrIndices[U.randInt(0, candidateOrIndices.length - 1)];
+    const orSeat = order[orIdx];
     actions[orSeat] = 'OR';
-    // Calcular los asientos que actúan después del OR en orden circular.
-    const idxOr = seatsSorted.indexOf(orSeat);
-    // Asientos que actúan después del OR: sólo los de índice mayor (no se recorre el círculo).
-    const afterSeats = seatsSorted.slice(idxOr + 1);
+    // Asientos que actúan después del OR en el orden preflop.
+    const afterSeats = order.slice(orIdx + 1);
     if (afterSeats.length > 0) {
-      // Elegir un asiento que responda al OR.
+      // Elegir un asiento que responda al OR (call o 3bet).
       const otherSeat = afterSeats[U.randInt(0, afterSeats.length - 1)];
-      // Con mayor probabilidad ocurre un call; la 3bet es menos frecuente.
       const otherAction = Math.random() < 0.3 ? '3bet' : 'call';
       actions[otherSeat] = otherAction;
-      // Si el otro jugador hace call, puede haber un call adicional detrás de él.
+      // Si es call, permitir un call adicional detrás del otherSeat en el orden preflop.
       const idxOther = afterSeats.indexOf(otherSeat);
       const afterOther = afterSeats.slice(idxOther + 1);
       if (otherAction === 'call' && afterOther.length > 0 && Math.random() < 0.5) {
@@ -138,7 +180,7 @@ const App = (() => {
         actions[callSeat] = 'call';
       }
     }
-    // El resto de asientos activos que no tienen acción asignada se marcan como fold.
+    // Asignar fold al resto de asientos activos.
     active.forEach(s => {
       if (!actions[s]) actions[s] = 'fold';
     });
@@ -160,25 +202,23 @@ const App = (() => {
   function generateActionsForOrIp(active, orSeat, otherSeat, otherAction) {
     const actions = Array(10).fill('');
     if (active.length === 0) return actions;
+    // Asignar acciones al OR y al otro jugador
     actions[orSeat] = 'OR';
     actions[otherSeat] = (otherAction === '3bet' ? '3bet' : 'call');
-    // Ordenar asientos activos para determinar quién actúa después del otroSeat.
-    const seatsSorted = active.slice().sort((a, b) => a - b);
-    const idxOr = seatsSorted.indexOf(orSeat);
-    const idxOther = seatsSorted.indexOf(otherSeat);
-    // Construir la lista de asientos que actúan después de otherSeat (sólo índices mayores).
+    // Utilizar el orden de acción preflop para determinar los asientos que actúan detrás del otherSeat.
+    const order = U.preflopOrder(active, state.btnSeat);
+    const idxOther = order.indexOf(otherSeat);
     let afterOther = [];
     if (idxOther >= 0) {
-      afterOther = seatsSorted.slice(idxOther + 1);
+      afterOther = order.slice(idxOther + 1);
     }
-    // En este modo se evita el call adicional tras una 3bet por claridad. Sólo
-    // se permite un call adicional si el otro jugador hace call y existe un
-    // asiento posterior a él.
+    // No permitir un call adicional tras una 3bet. Si es call, hay probabilidad de añadir otro call detrás.
     if (otherAction !== '3bet' && afterOther.length > 0 && Math.random() < 0.5) {
       const callSeat = afterOther[U.randInt(0, afterOther.length - 1)];
+      // Evitar sobrescribir acciones existentes
       if (!actions[callSeat]) actions[callSeat] = 'call';
     }
-    // Resto de activos: fold
+    // El resto de activos se marcan como fold
     active.forEach(s => {
       if (!actions[s]) actions[s] = 'fold';
     });
@@ -580,11 +620,27 @@ function placeRoleChips() {
     }
     // Modo Asiento → IP/OOP: se señala un asiento y el usuario debe decir si está en posición (IP) o fuera de posición (OOP).
     if (state.config.mode === 'seatIp') {
-      // Elegir OR y otro asiento para construir la acción; el OR y el segundo asiento deben ser distintos.
-      const orSeat = active[U.randInt(0, active.length - 1)];
-      let otherSeat = active[U.randInt(0, active.length - 1)];
-      while (otherSeat === orSeat) {
-        otherSeat = active[U.randInt(0, active.length - 1)];
+      // Seleccionar OR y el segundo jugador según el orden de acción preflop.
+      const orderPre = U.preflopOrder(active, state.btnSeat);
+      const nPre = orderPre.length;
+      // Determinar los índices elegibles para OR (no SB ni BB y con al menos un asiento detrás).
+      let candidateOrIdx = [];
+      for (let i = 0; i < nPre; i++) {
+        if (i < nPre - 2) {
+          candidateOrIdx.push(i);
+        }
+      }
+      if (candidateOrIdx.length === 0) candidateOrIdx = [0];
+      const orIdx = candidateOrIdx[U.randInt(0, candidateOrIdx.length - 1)];
+      const orSeat = orderPre[orIdx];
+      // Elegir un asiento detrás del OR para responder (call o 3bet)
+      const afterSeats = orderPre.slice(orIdx + 1);
+      let otherSeat;
+      if (afterSeats.length > 0) {
+        otherSeat = afterSeats[U.randInt(0, afterSeats.length - 1)];
+      } else {
+        // fallback: elegir cualquier otro asiento activo distinto
+        otherSeat = active.find(s => s !== orSeat);
       }
       // Decidir acción del otro jugador (call/3bet) con probabilidad 50%
       const otherAction = Math.random() < 0.5 ? 'call' : '3bet';
@@ -615,25 +671,39 @@ function placeRoleChips() {
     }
     // Modo IP/OOP → Asiento: se pregunta quién está IP u OOP y el usuario debe pulsar el asiento correcto.
     if (state.config.mode === 'ipToSeat') {
-      // Elegir asientos para OR y para la respuesta (call/3bet). Ambos deben ser distintos.
-      const orSeat = active[U.randInt(0, active.length - 1)];
-      let otherSeat = active[U.randInt(0, active.length - 1)];
-      while (otherSeat === orSeat) {
-        otherSeat = active[U.randInt(0, active.length - 1)];
+      // Seleccionar OR y otro asiento según orden de acción preflop.
+      const orderPre = U.preflopOrder(active, state.btnSeat);
+      const nPre = orderPre.length;
+      let candidateOrIdx = [];
+      for (let i = 0; i < nPre; i++) {
+        if (i < nPre - 2) {
+          candidateOrIdx.push(i);
+        }
       }
-      // Decidir acción del otro jugador con probabilidad 50%: call o 3bet.
+      if (candidateOrIdx.length === 0) candidateOrIdx = [0];
+      const orIdx = candidateOrIdx[U.randInt(0, candidateOrIdx.length - 1)];
+      const orSeat = orderPre[orIdx];
+      // Elegir otro asiento detrás del OR
+      const afterSeats = orderPre.slice(orIdx + 1);
+      let otherSeat;
+      if (afterSeats.length > 0) {
+        otherSeat = afterSeats[U.randInt(0, afterSeats.length - 1)];
+      } else {
+        otherSeat = active.find(s => s !== orSeat);
+      }
+      // Acción del otro jugador
       const otherAction = Math.random() < 0.5 ? 'call' : '3bet';
       q.orSeat = orSeat;
       q.otherSeat = otherSeat;
       q.meta.otherAction = otherAction;
-      // Construir las acciones preflop coherentes con estos asientos.
+      // Construir acciones preflop coherentes
       state.actions = generateActionsForOrIp(active, orSeat, otherSeat, otherAction);
-      // Calcular orden postflop para determinar quién está IP respecto al OR.
+      // Calcular orden postflop para determinar quién está IP respecto al OR
       const order = U.postflopOrder(active, state.btnSeat);
       const ia = order.indexOf(orSeat);
       const ib = order.indexOf(otherSeat);
       const otherIsIP = ib > ia;
-      // Determinar al azar si se pregunta por el jugador IP o por el jugador OOP.
+      // Decidir si se pregunta por IP u OOP
       const askWho = Math.random() < 0.5 ? 'IP' : 'OOP';
       q.meta.askWho = askWho;
       const correctSeat = (askWho === 'IP')
