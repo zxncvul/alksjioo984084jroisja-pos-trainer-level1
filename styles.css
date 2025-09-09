@@ -881,3 +881,18 @@ button.asking{ box-shadow:none !important; border:none !important; }
 /* 50px exactos entre la mesa y la primera fila de botones */
 .pos-section{ margin-top: 50px !important; }
 /* (alternativa equivalente) .table-wrap{ margin-bottom: 50px !important; } */
+
+/* Escalar app completa en pantallas pequeñas */
+@media (max-width: 768px) {
+  #app {
+    transform: scale(0.8);
+    transform-origin: top center;
+  }
+}
+
+@media (max-width: 480px) {
+  #app {
+    transform: scale(0.65);
+    transform-origin: top center;
+  }
+}
