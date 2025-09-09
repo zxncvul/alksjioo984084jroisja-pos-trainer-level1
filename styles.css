@@ -827,3 +827,57 @@ button.asking{ box-shadow:none !important; border:none !important; }
 /* Desactiva el overlay rojo global */
 .flash-overlay{ display:none !important; opacity:0 !important; pointer-events:none !important; }
 
+.table .question {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--fg);
+  text-align: center;
+  font-size: 1.2em;
+  max-width: 80%;
+  z-index: 5; /* encima de las fichas pero debajo del overlay rojo */
+  pointer-events: none; /* que no bloquee clicks en los asientos */
+}
+
+.table-wrap {
+  margin-top: 100px; /* empuja todo el board hacia abajo */
+}
+
+/* --- FIX LAYOUT (añadir al FINAL) --- */
+
+/* No estires la escena; quita el “58vh” que empuja la última fila al fondo */
+.scene{
+  grid-template-rows: auto auto auto !important;
+  align-content: start !important;
+}
+
+/* Baja la mesa, pero sin arrastrar el resto */
+.table-wrap{ margin-top: 60px !important; }
+
+/* Botoneras centradas al ancho del board */
+.pos-section .pos-buttons,
+.pos-section .ip-buttons,
+.mode-panel .modes,
+.controls-wrap{
+  width: min(96vw, var(--board-max)) !important;
+  margin: 0 auto !important;
+}
+
+/* La fila de configuración: 5 columnas reales, sin desbordes raros */
+.controls{
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  grid-auto-rows: 44px !important;
+  gap: .5rem !important;
+  
+}
+
+/* Un poco de aire entre filas, todas iguales */
+.pos-section .pos-buttons,
+.pos-section .ip-buttons,
+.mode-panel .modes,
+.controls-wrap{ margin-top: .8rem !important; }
+/* 50px exactos entre la mesa y la primera fila de botones */
+.pos-section{ margin-top: 50px !important; }
+/* (alternativa equivalente) .table-wrap{ margin-bottom: 50px !important; } */
