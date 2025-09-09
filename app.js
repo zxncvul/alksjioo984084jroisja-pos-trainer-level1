@@ -559,7 +559,7 @@ function placeRoleChips() {
       // Resaltar sólo el botón de la posición que se pregunta
       highlightPosButton(pos);
       // Formatear la pregunta
-      setQuestion(`¿En qué asiento se encuentra <strong>${pos}</strong>? Pulsa el asiento correcto.`);
+      setQuestion(`¿Asiento <strong>${pos}</strong>?`);
     }
     // Modo Asiento → Posición
     if (state.config.mode === 'seatToPos') {
@@ -574,7 +574,7 @@ function placeRoleChips() {
       renderPosButtons(activeLabels);
       // No resaltar posButtons; se habilitarán luego
       // Formatear la pregunta
-      setQuestion(`¿Qué posición corresponde a este asiento? Pulsa la posición correcta.`);
+      setQuestion(`¿Posición?`);
       // Establecer manejadores en los botones de posición
       enablePosAnswer(posLabel);
     }
@@ -611,7 +611,7 @@ function placeRoleChips() {
       disableAllPosButtons();
       // Formatear la pregunta
       const seatLabel = state.labels[targetSeat] || '';
-      setQuestion(`¿Está este asiento <strong>IP</strong> o <strong>OOP</strong>?`);
+      setQuestion(`¿<strong>IP</strong> / <strong>OOP</strong>?`);
     }
     // Modo IP/OOP → Asiento: se pregunta quién está IP u OOP y el usuario debe pulsar el asiento correcto.
     if (state.config.mode === 'ipToSeat') {
@@ -666,7 +666,7 @@ function placeRoleChips() {
         }
       }
       // Actualizar el texto de la pregunta para indicar qué jugador hay que buscar y que el usuario pulse el asiento.
-      setQuestion(`¿Quién está <strong>${askWho}</strong>? Pulsa el asiento correcto.`);
+      setQuestion(`¿<strong>${askWho}</strong>?`);
     }
     // Guardar pregunta en estado
     state.question = q;
