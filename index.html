@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Entrenador de Posición · Terminal</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <main class="scene">
+      <!-- Pregunta -->
+      <section class="question-section">
+        <div class="question" id="question" aria-live="polite"></div>
+      </section>
+
+      <!-- Mesa -->
+      <div class="table-wrap">
+        <div id="table" class="table" aria-label="Mesa de póker">
+          <div class="ring" id="ring">
+            <svg viewBox="0 0 100 100" class="progress-ring">
+              <circle id="trailPath" cx="50" cy="50" r="44"></circle>
+              <circle id="progressPath" cx="50" cy="50" r="44"></circle>
+            </svg>
+          </div>
+          <div id="flashOverlay" class="flash-overlay"></div>
+          <div class="chips" id="chips"></div>
+        </div>
+      </div>
+
+      <!-- Posiciones + IP/OOP -->
+      <section class="pos-section">
+        <div id="posButtons" class="pos-buttons" role="group" aria-label="Elegir posición"></div>
+
+        <!-- IP/OOP siempre visibles; el JS solo los deshabilita fuera de seatIp -->
+        <div id="ipButtons" class="ip-buttons" role="group" aria-label="Responder IP u OOP">
+          <button id="btnIP" type="button" class="ip-btn">IP</button>
+          <button id="btnOOP" type="button" class="ip-btn">OOP</button>
+        </div>
+      </section>
+
+      <!-- Modos -->
+      <section class="mode-panel">
+        <div class="modes" role="group" aria-label="Modos">
+          <button id="modeSeatFromPos" class="mode active" title="¿Qué asiento corresponde a esta posición?">Pos → SIT</button>
+          <button id="modePosFromSeat" class="mode" title="¿Qué posición corresponde a este asiento?">SIT → Pos</button>
+          <button id="modeSeatIP" class="mode" title="¿Está este asiento IP u OOP?">SIT → IP/OOP</button>
+          <button id="modeIPSeat" class="mode" title="¿Qué asiento está IP/OOP?">IP/OOP → SIT</button>
+        </div>
+        <!-- Nomenclatura se ha movido a la fila de controles; esta se elimina para evitar duplicados -->
+      </section>
+
+      <div class="controls-wrap">
+        <div class="controls">
+        <div class="ctrl spinner" id="playersCtrl">
+          <button type="button" id="playersDec" class="spin-btn">&lt;</button>
+          <span class="label">Player</span>
+          <span id="playersVal" class="value">6</span>
+          <button type="button" id="playersInc" class="spin-btn">&gt;</button>
+        </div>
+
+        <div class="ctrl spinner" id="timerCtrl">
+          <button type="button" id="timerDec" class="spin-btn">&lt;</button>
+          <span class="label">Time</span>
+          <span id="timerVal" class="value">10s</span>
+          <button type="button" id="timerInc" class="spin-btn">&gt;</button>
+        </div>
+
+        <div class="ctrl dist-toggle">
+          <button type="button" id="distToggle" class="toggle-dist" aria-label="Alternar distribución">
+            <span class="circle"></span><span class="dist-label">Sesgada</span>
+          </button>
+        </div>
+
+        <!-- Nomenclatura en la misma línea -->
+        <div class="ctrl naming-toggle">
+          <button id="toggleNaming" aria-label="Alternar nomenclatura" title="Alternar nomenclatura (A/B)">
+            Nom: <span id="namingLabel">B</span>
+          </button>
+        </div>
+
+        <div class="ctrl empty"></div>
+        </div><!-- /.controls -->
+      </div><!-- /.controls-wrap -->
+
+
+    </main>
+
+    <!-- Controles alineados en una fila con ancho limitado al tablero -->
+    
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

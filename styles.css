@@ -1,0 +1,829 @@
+/* Pos Trainer · V5 — estilo minimalista con mesa redonda y anillo pequeño */
+/*
+  Variables globales. Estas propiedades definen colores y tamaños utilizados
+  en toda la interfaz. El color rojo oscuro se usa para la estela del
+  temporizador consumido.
+*/
+:root{
+  --bg: #000;
+  --fg: #2aff88;
+  --fg-dim: #1ca566;
+  --fg-dark: #0f5a39;
+  --red: #ff0000;
+  /* Rojo muy oscuro para los asientos vacíos y la barra de tiempo consumido.
+     Debe ser apreciablemente más oscuro que el rojo de los asientos
+     destacados para que se distingan con facilidad. */
+  --red-dark: #ff000069;
+  --blue: #2196f3;
+  --seat-size-min: 36px;
+  /* Ajustar el tamaño de los asientos a valores más grandes para alojar
+     las acciones (call, fold, 3bet, OR) en su interior. */
+  /* Tamaño de los asientos aumentado para alojar cómodamente las acciones. */
+  --seat-size: 1300vw;
+}
+
+*{ box-sizing:border-box; }
+/* Permitir que el contenido crezca verticalmente: en lugar de fijar la altura a 100% se usa
+   una altura mínima y se permite overflow vertical. Así la barra inferior
+   siempre será visible y, si la página excede la altura de la ventana, se
+   podrá hacer scroll para verla. */
+html,body,#app {
+  min-height: 100%;
+  height: auto;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+body {
+  margin: 0;
+  overflow-y: auto;
+}
+
+.topbar{ display:flex; align-items:center; justify-content:space-between; padding:.6rem 1rem; border-bottom:4px solid var(--fg-dim); background:#000; }
+.brand{ letter-spacing:.08em; font-weight:700; }
+.naming-toggle button{ background:transparent; color:var(--fg); border:3px solid var(--fg-dim); padding:.35rem .7rem; border-radius:.25rem; cursor:pointer; }
+.naming-toggle button:hover{ border-color:var(--fg); }
+
+.scene{ display:grid; grid-template-columns: 1fr; grid-template-rows: auto minmax(300px, 58vh) auto; gap:.6rem; padding:.6rem; max-width: 960px; margin: 0 auto; }
+.hud{ display:grid; gap:.5rem; align-content:start; justify-items:center; text-align:center; }
+.hud-bottom{ gap:.75rem; }
+.question{ min-height:2rem; font-size: clamp(16px, 2.4vw, 18px); letter-spacing:.02em; }
+.modes{ display:flex; gap:.5rem; flex-wrap:wrap; justify-content:center; }
+.modes .mode{ background:transparent; color:var(--fg); border:4px solid var(--fg-dim); border-radius:.25rem; cursor:pointer; padding:.45rem .8rem; }
+.modes .mode.active{ border-color:var(--fg); }
+
+.table-wrap{ display:grid; place-items:center; }
+.table{
+  position:relative;
+  width:min(96vw, 560px);
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background:#000;
+  overflow:hidden;
+}
+
+/*
+  Anillo delimitador interior: se dibuja un círculo más pequeño que la mesa
+  para conectar visualmente los asientos. El inset se incrementa para
+  acercar las posiciones entre sí sin que la línea pase por encima de
+  los asientos.
+*/
+.table::before {
+  content: '';
+  position: absolute;
+  /* Aumentar el grosor de la línea interior que delimita el tablero */
+  inset: 10%;
+  border: 0px solid var(--fg-dim);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.ring{ position:absolute; inset:0; pointer-events:none; }
+
+/* Tamaño y posición del anillo de progreso: más pequeño para pasar por el centro de las posiciones */
+.progress-ring {
+  position: absolute;
+  inset: 2%; /* ajusta 10–16% según tu layout real */
+  width: auto;
+  height: auto;
+}
+
+/*
+  Círculos del anillo de tiempo. Se separan en dos: uno para la estela
+  consumida (trailPath) y otro para el progreso restante (progressPath).
+  El circulo de progreso se muestra por encima del de estela.
+*/
+#trailPath {
+  fill:none;
+  stroke: var(--red-dark);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  opacity: .8;
+}
+#progressPath {
+  fill:none;
+  stroke: var(--fg);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  opacity: .9;
+}
+
+.table.error{ outline: 2px solid var(--red); outline-offset:-2px; }
+
+/* Asientos: 10 círculos permanentes */
+.seat{
+  position:absolute;
+  width: clamp(var(--seat-size-min), var(--seat-size), 85px);
+  height: clamp(var(--seat-size-min), var(--seat-size), 85px);
+  border-radius:50%;
+  /* Bordes de los asientos más gruesos para mayor visibilidad */
+  border:3px solid var(--fg-dim);
+  /* Fondo negro para que ni el anillo ni la línea de la mesa
+     sean visibles a través de los asientos */
+  background: var(--bg);
+  display:flex; align-items:center; justify-content:center;
+  color:var(--fg);
+  cursor:pointer;
+}
+
+/*
+  Texto de acción dentro de cada asiento (OR, call, fold, 3bet). Se muestra
+  debajo de la etiqueta de posición. El tamaño y espaciado se ajustan
+  para caber en el círculo ampliado.
+*/
+.seat .action{
+  /* Aumentar tamaño de la acción para hacerla más legible */
+  font-size: .75rem;
+  margin-top: .12rem;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  opacity:.9;
+}
+.seat .action.or{ color: var(--blue); font-weight:600; }
+.seat .action.call{ color: #f1c40f; }
+.seat .action.fold{ color: #e74c3c; }
+.seat .action.threebet{ color: var(--red); font-weight:600; }
+
+/* Asiento que realiza el OR */
+.seat.or-seat{ border-color: var(--red); }
+.seat.or-seat .action{ color: var(--red); font-weight:600; }
+
+.seat .tag{ font-size: .62rem; opacity:.9; white-space:nowrap; }
+.seat .tag.hidden{ opacity:0; }
+.seat.unavailable{ border-color: var(--red-dark); color: var(--red-dark); }
+/*
+  Cuando un asiento está en estado de respuesta (preguntando por una posición),
+  en lugar de dibujar un contorno extra por fuera del borde existente se
+  sustituye el propio borde por uno rojo más grueso. De esta forma sólo se
+  ve un único círculo rojo y se evita la impresión de dos anillos superpuestos.
+  El grosor se aumenta a 4px según la petición del usuario.
+*/
+.seat.asking{
+  /* Elimina cualquier outline previamente aplicado */
+  outline: none;
+  /* Sobrescribe el borde original del asiento: 4px y rojo */
+  border: 4px solid var(--red);
+}
+
+/* Chips minimal (Dealer/BTN/Blinds) */
+.chips{ position:absolute; inset:0; pointer-events:none; }
+.chip{ position:absolute; width: 12px; height:12px; border-radius:50%; border:1px solid var(--fg); background: transparent; transform: translate(-50%, -50%); }
+/* Aumentar el tamaño de las fichas de dealer/SB/BB para que sean más visibles y separadas del asiento */
+.chip{
+  width:26px;
+  height:26px;
+  border-radius:50%;
+  border:3px solid var(--fg);
+  background: transparent;
+  transform: translate(-50%, -50%);
+}
+.chip.btn{ border-style: solid; }
+.chip.sb{ border-style: solid; }
+.chip.bb{ border-style: solid; }
+.chip.dealer{ border-color: var(--blue); border-style: solid; }
+.chip.bet{ width:10px; height:10px; border-color: var(--fg); }
+.chip.fold{ width:8px; height:8px; border-color: var(--fg-dark); }
+
+/* ====== REJILLA UNIFORME PARA BOTONERAS ====== */
+.pos-buttons,
+.ip-buttons,
+.controls {
+  display: grid;
+  gap: .5rem;
+  grid-auto-rows: 44px;           /* misma altura en todas las filas */
+}
+
+/* Posiciones: 5 columnas perfectas */
+.pos-buttons {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/* IP/OOP: 2 columnas iguales y centradas */
+.ip-buttons {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+}
+
+/* Controles (si los quieres igual de alineados en 5) */
+
+
+/* Botones: ocupan toda la celda, mismo padding visual, sin romper fila */
+.pos-buttons button,
+.ip-buttons .ip-btn,
+.controls > * button,
+.controls .naming-toggle button,
+.toggle-dist,
+.spinner {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: .45rem .8rem;
+  box-sizing: border-box;
+}
+
+/* Bordes y estados coherentes */
+.pos-buttons button,
+.ip-buttons .ip-btn {
+  background: #086138e0;
+  color: #00ff88;;
+  font-weight: bold;
+  border: none;
+  border-radius: .25rem;
+  cursor: pointer;
+}
+.pos-buttons button.asking { border:none; }
+
+/* El botón de posición que se está preguntando (modo Pos→Asiento) se resalta
+   con el mismo color de fondo brillante que los botones de IP/OOP cuando están
+   en modo pregunta. Esto distingue claramente el objetivo del resto de
+   posiciones. */
+.pos-buttons button.asking {
+  background: #086138e0;
+  color: #00ff88;;
+  font-weight: bold;
+}
+/*
+  Botones deshabilitados (tanto de posiciones como IP/OOP) se muestran con un
+  fondo de verde muy oscuro y sus bordes también oscuros para indicar que no
+  pueden pulsarse. El texto se mantiene con el color de fondo para crear
+  contraste mínimo y reforzar la idea de inactividad.
+*/
+.pos-buttons button.disabled,
+.ip-buttons.disabled .ip-btn {
+  background: #1ca56527;
+  border: none;
+  color: #1ca56546;
+  cursor: default;
+}
+
+/*
+  Cuando un botón de posición está disponible para responder (modo Asiento→Posición),
+  se resalta usando el color de primer plano en su borde. Esto lo distingue de
+  los botones atenuados. El botón que se está preguntando (clase 'asking') ya
+  tiene su propio resaltado definido más arriba.
+*/
+/*
+  Botones disponibles (no deshabilitados ni preguntando) se muestran con un
+  fondo de verde normal (dim) y texto negro para resaltar su disponibilidad.
+  El borde también utiliza el color de primer plano para un aspecto más claro.
+*/
+.pos-buttons button:not(.disabled):not(.asking) {
+  background: #086138e0;
+  color: #00ff88;;
+  font-weight: bold;
+}
+
+/*
+  Los botones IP/OOP adoptan un borde más brillante cuando están habilitados. El contenedor
+  .ip-buttons recibe la clase 'disabled' para oscurecerlos; cuando dicha clase no
+  está presente, estos botones se muestran con el mismo verde que los botones
+  disponibles de posición.
+*/
+/*
+  Cuando los botones IP/OOP están habilitados (modo Asiento→IP/OOP), su fondo
+  se pinta de verde normal (dim) con texto oscuro para indicar que son
+  seleccionables. El borde utiliza el color de primer plano.
+*/
+.ip-buttons:not(.disabled) .ip-btn {
+  background: var(--fg-dim);
+  border-color: var(--fg);
+  color: var(--bg);
+}
+
+/*
+  En el modo IP/OOP→Asiento se destaca el botón IP u OOP que se está preguntando
+  mediante la clase 'asking'. Este estilo sobrescribe el estado atenuado para
+  dar una pista visual sobre qué categoría (IP u OOP) hay que buscar.
+*/
+/*
+  En el modo IP/OOP→Asiento, se destaca el botón que indica la pregunta (IP u
+  OOP) con un color de fondo más brillante y un borde iluminado. El texto
+  aparece negro para contrastar con el fondo.
+*/
+.ip-buttons .ip-btn.asking {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+  box-shadow: 0 0 0 1px var(--fg) inset;
+}
+
+/* Footer */
+.bottombar{
+  /* El pie ya no se mantiene pegado a la parte inferior; se coloca tras las filas anteriores */
+  border-top:1px solid var(--fg-dim);
+  background:#000;
+  padding:.4rem .6rem;
+  margin-top:.8rem;
+}
+
+/* Spinners Player/Time */
+.spinner{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.35rem;
+  border:0px solid var(--fg-dim);
+  border-radius:.25rem;
+  padding:.35rem .6rem;
+}
+.spinner .label{ color: var(--fg); font-size: .85rem; }
+.spinner .value{
+  min-width: 2.4rem;
+  text-align: center;
+  display:inline-block;
+  color: var(--fg);
+  font-size: .85rem;
+}
+.spinner .spin-btn{
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 .4rem;
+  line-height:1;
+}
+.spinner .spin-btn:disabled{ color: var(--fg-dark); cursor: default; }
+
+/* Botón de distribución con indicador circular */
+.toggle-dist{
+  display:flex;
+  align-items:center;
+  gap:.4rem;
+  background: transparent;
+  border:0px solid var(--fg-dim);
+  border-radius:.25rem;
+  color: var(--fg);
+  padding:.4rem .7rem;
+  cursor:pointer;
+}
+.toggle-dist .circle{
+  width:.8rem;
+  height:.8rem;
+  border-radius:50%;
+  border:2px solid var(--fg-dim);
+  background: transparent;
+  display:inline-block;
+}
+.toggle-dist.active{ border-color: var(--fg); }
+.toggle-dist.active .circle{ background: var(--fg); border-color: var(--fg); }
+
+/* Mantén consistencia en móviles */
+@media (max-width: 640px){
+  .controls { gap: .6rem; }
+}
+
+/*
+  Sección de modos y selector de nomenclatura.
+*/
+.mode-panel{
+  display:flex;
+  flex-wrap:wrap;
+  gap:.5rem;
+  justify-content:center;
+  margin-top:.8rem;
+}
+.mode-panel .modes{
+  display:flex;
+  gap:.5rem;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+.mode-panel .mode{
+  background:transparent;
+  color:var(--fg);
+  border:0px solid var(--fg-dim);
+  border-radius:.25rem;
+  cursor:pointer;
+  padding:.45rem .8rem;
+}
+.mode-panel .mode.active{ border-color: var(--fg); }
+.mode-panel .naming-toggle button{
+  background:transparent;
+  color:var(--fg);
+  border:4px solid var(--fg-dim);
+  border-radius:.25rem;
+  cursor:pointer;
+  padding:.35rem .7rem;
+}
+.mode-panel .naming-toggle button:hover{ border-color:var(--fg); }
+
+/* Nomenclatura dentro de la línea de controles (misma retícula) */
+.controls .naming-toggle button{
+  background:transparent;
+  color:var(--fg);
+  border:0px solid var(--fg-dim);
+  border-radius:.25rem;
+  cursor:pointer;
+  padding:.35rem .7rem;
+  width:100%;
+}
+.controls .naming-toggle button:hover{ border-color: var(--fg); }
+
+/*
+  Sección de pregunta
+*/
+.question-section{
+  display:flex;
+  justify-content:center;
+  margin-bottom:.6rem;
+}
+.question{
+  min-height:2rem;
+  font-size: clamp(16px, 2.4vw, 18px);
+  letter-spacing:.02em;
+}
+
+/*
+  Capa de destello roja cuando se agota el tiempo
+*/
+.flash-overlay{
+  position:absolute;
+  inset:0;
+  background: var(--red);
+  opacity:0;
+  pointer-events:none;
+  transition: opacity .4s ease;
+}
+.flash-overlay.show{ opacity: 0.8; }
+
+/*
+  Estado de error: cambia verdes por rojos
+*/
+body.error-state{ --fg: var(--red); --fg-dim: var(--red-dark); }
+body.error-state #progressPath{ stroke: var(--red-dark); }
+body.error-state #trailPath{ stroke: var(--red-dark); }
+
+#progressPath,
+#trailPath {
+  stroke: var(--red-dark);
+  stroke-width: 0.6;
+}
+
+#progressPath {
+  stroke: var(--fg-dim);
+  stroke-width: 0.6;
+}
+/* Fila de modos (Pos→Asiento etc.) en 4 columnas iguales */
+.mode-panel {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .5rem;
+  width: 100%;
+}
+.mode-panel .mode {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--fg-dim);
+  border-radius: .25rem;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+/* Fila de controles (Player, Time, Seggada, Nomenclatura) en 4 columnas */
+
+
+/* Cada control ocupa su celda completa */
+.controls > * {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* ================= Consolidated and override styles ================= */
+/*
+ * Resaltado del botón de posición durante la pregunta (modo Pos→SIT).
+ * En heads‑up ambos botones permanecen habilitados, pero el objetivo se distingue
+ * claramente mediante un borde y una sombra. El resto de modos mantienen
+ * deshabilitados los botones incorrectos.
+ */
+.pos-buttons button.asking {
+  /* Borde luminoso empleando los colores definidos como tokens */
+  border: 2px solid var(--blue);
+  /* Sombra suave para reforzar el borde; se usa el azul para que destaque */
+  box-shadow: 0 0 8px var(--blue);
+  /* Fondo ligeramente más oscuro para diferenciarse del resto de botones */
+  background: var(--fg-dark);
+  color: var(--fg);
+  font-weight: bold;
+}
+
+/* Consolidated progress ring styling: una única fuente de verdad para
+   #progressPath y #trailPath preservando la apariencia actual. */
+#trailPath,
+#progressPath {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+#trailPath {
+  stroke: var(--red-dark);
+  opacity: .8;
+}
+#progressPath {
+  stroke: var(--fg);
+  opacity: .9;
+}
+
+/* Consolidated mode-panel styles to avoid duplicated rules.  */
+.mode-panel {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.mode-panel .modes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .5rem;
+  width: min(96vw, var(--board-max));
+}
+.mode-panel .mode {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--fg-dim);
+  border-radius: .25rem;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+.mode-panel .mode.active {
+  border-color: var(--fg);
+}
+.mode-panel .mode.selected {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--fg);
+}
+
+/*
+  Reglas adicionales para la interfaz adaptada.
+  Se fuerza la disposición de los modos en una única fila centrada,
+  se alinea la barra de controles a la anchura del tablero y se
+  estilizan las fichas de la big blind para que una quede encima de la otra.
+*/
+
+/* Filas de modos: 4 columnas de igual tamaño centradas al ancho del tablero */
+.mode-panel .modes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .5rem;
+  width: min(96vw, 560px);
+  margin: .8rem auto;
+}
+
+/* Botones de modo rellenan su celda */
+.mode-panel .mode {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0px solid var(--fg-dim);
+  border-radius: .25rem;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+/* Resaltado del modo seleccionado */
+.mode-panel .mode.selected {
+  background: transparent;
+  color: #00ff8856
+}
+
+/* Cuando está activo pero no seleccionado se marca solo el borde */
+.mode-panel .mode.active:not(.selected) {
+  border-color: var(--fg);
+}
+
+/* Contenedor que limita el ancho de la fila de controles y la centra */
+.bottombar .controls-wrap {
+  width: min(96vw, 560px);
+  margin: 0 auto;
+}
+
+/* Configuración del grid de controles en 5 columnas */
+.bottombar .controls {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-auto-rows: 44px;
+  gap: .8rem;
+  width: 100%;
+}
+
+/* Cada control ocupa toda su celda y centra su contenido */
+.bottombar .controls > * {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Estilos para las fichas de la big blind: la ficha superior tiene fondo negro para ocultar la de abajo */
+.chip.bb-top {
+  background: var(--bg);
+}
+.chip.bb-bottom {
+  background: transparent;
+}
+
+/* Alinear las últimas filas igual que las botoneras de arriba */
+.mode-panel,
+.bottombar {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.mode-panel .modes,
+.bottombar .controls-wrap {
+  /* Limitar el ancho al del tablero y centrarlo. No definimos una retícula aquí
+     porque la retícula se gestiona dentro de .controls. */
+  width: min(96vw, 560px);
+  margin: 0 auto;
+  display: block;
+}
+.mode-panel .modes {
+  width: min(96vw, 560px);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .5rem;
+}
+
+
+/* === Ancho unificado del tablero y botoneras === */
+:root{
+  /* cambia 560px si quieres otro límite */
+  --board-max: 560px;
+}
+
+/* La mesa usa el mismo ancho de referencia */
+.table{
+  width: min(96vw, var(--board-max));
+}
+
+/* Posiciones (fila 1 y 2) centradas y con el mismo ancho que la mesa */
+.pos-section{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.pos-section .pos-buttons,
+.pos-section .ip-buttons{
+  width: min(96vw, var(--board-max));
+}
+
+/* Fila de modos (tercera) con el mismo ancho */
+.mode-panel{
+  display:flex;
+  justify-content:center;
+  width:100%;
+}
+.mode-panel .modes{
+  width: min(96vw, var(--board-max));
+}
+
+/* Fila de controles (cuarta) con el mismo ancho */
+.bottombar{
+  display:flex;
+  justify-content:center;
+  width:100%;
+}
+.bottombar .controls-wrap{
+  width: min(96vw, var(--board-max));
+}
+
+/* === ANCHO ÚNICO Y REAL PARA TODAS LAS FILAS (board + botones + modos + controles) === */
+:root { --board-max: 560px; } /* cámbialo si quieres otro tope */
+
+/* La mesa define la referencia de ancho */
+.table{ width: min(96vw, var(--board-max)) !important; }
+
+/* POSICIONES e IP/OOP centradas y con el mismo ancho */
+.pos-section{ display:flex; flex-direction:column; align-items:center; }
+.pos-section .pos-buttons,
+.pos-section .ip-buttons{ width: min(96vw, var(--board-max)) !important; }
+
+/* MODOS centrados y con el mismo ancho */
+.mode-panel{ display:flex; justify-content:center; width:100%; }
+.mode-panel .modes{ width: min(96vw, var(--board-max)) !important; }
+
+/* CONTROLES: el borde y el ancho viven dentro, no en el footer completo */
+.bottombar{
+  display:flex;
+  justify-content:center;
+  width:100%;
+  background:#000;
+  border-top:0 !important;              /* quitamos el borde ancho */
+  padding:0;                             /* el padding va dentro */
+  margin-top:.8rem;
+}
+.bottombar .controls-wrap{
+  width: min(96vw, var(--board-max)) !important;
+  margin: 0 auto;
+  border-top:1px solid var(--fg-dim);    /* borde acotado al ancho del board */
+  padding:.4rem .6rem 0;
+}
+
+/* Forzar la retícula exacta de la última fila: 5 celdas (Player, Time,
+   Sesgada, Nomenclatura y un hueco). Esto neutraliza reglas previas que
+   limitaban el número de columnas y reducían el ancho. */
+.bottombar .controls{
+  display:grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  grid-auto-rows: 44px !important;
+  gap:.5rem !important;
+  width:100% !important;
+}
+/* El elemento .empty de la barra inferior ya no se oculta, para conservar
+   la estructura de 5 columnas. Se vuelve a mostrar como un contenedor
+   flexible vacío que ocupa su espacio. */
+.bottombar .controls .empty{ display:flex !important; }
+
+/* === Uniformar margen superior de TODAS las filas de botones === */
+:root { --row-top: .8rem; }
+
+/* Quitar márgenes/paddings que distorsionan */
+.mode-panel{ margin-top: 0 !important; }
+.mode-panel .modes{ margin: 0 !important; }
+.bottombar{ margin-top: 0 !important; padding-top: 0 !important; }
+.bottombar .controls-wrap{ padding-top: 0 !important; }
+
+/* Mismo margen superior en cada fila de botones */
+.pos-section .pos-buttons,
+.pos-section .ip-buttons,
+.mode-panel .modes,
+.bottombar .controls-wrap{
+  margin-top: var(--row-top) !important;
+}
+
+/* Evitar doble espacio entre las dos filas dentro de pos-section */
+.pos-section{ row-gap: 0 !important; }
+
+
+/* Fila inferior (Player, Time, Sesgada, Nomenclatura, vacío) en 5 columnas */
+.controls-wrap {
+  width: min(96vw, var(--board-max));
+  margin: 0 auto;
+}
+
+.controls {
+  display: grid !important;
+  grid-template-columns: repeat(5, 6fr) !important;
+  grid-auto-rows: 44px !important;
+  gap: 1.5rem !important;
+  width: 126% !important;
+}
+
+/* Cada control ocupa su celda completa */
+.controls > * {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* ÚNICA fuente de verdad del anillo (al final del CSS) */
+#progressPath { stroke-width: 0.5px; }  /* anillo activo, más fino */
+#trailPath    { stroke-width: 0.5px; }  /* pista de fondo, aún más fina */
+
+/* Sin borde ni glow en cualquier asking */
+button.asking{ box-shadow:none !important; border:none !important; }
+
+/* Verde sutil unificado para preguntas (Pos→SIT e IP/OOP→SIT) */
+.pos-buttons button.asking,
+.ip-buttons button.asking,
+#ipBtn.asking, #oopBtn.asking{
+  background-color: rgba(42, 255, 134, 0.404) !important; /* más tenue que antes */
+  color: var(--fg) !important;
+}
+
+/* Desactiva el overlay rojo global */
+.flash-overlay{ display:none !important; opacity:0 !important; pointer-events:none !important; }
+
