@@ -5,16 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Entrenador de Posición · Terminal</title>
   <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* Aire superior para toda la mesa */
+    .table-wrap {
+      margin-top: 60px;
+    }
+    /* Enunciado dentro del board, centrado */
+    .table .question {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--fg);
+      text-align: center;
+      font-size: 1.2em;
+      max-width: 70%;
+      line-height: 1.4;
+      z-index: 5;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
   <div id="app">
     <main class="scene">
-      <!-- Pregunta -->
-      <section class="question-section">
-        <div class="question" id="question" aria-live="polite"></div>
-      </section>
 
-      <!-- Mesa -->
+      <!-- Mesa con enunciado dentro -->
       <div class="table-wrap">
         <div id="table" class="table" aria-label="Mesa de póker">
           <div class="ring" id="ring">
@@ -24,6 +40,7 @@
             </svg>
           </div>
           <div id="flashOverlay" class="flash-overlay"></div>
+          <div class="question" id="question" aria-live="polite"></div>
           <div class="chips" id="chips"></div>
         </div>
       </div>
@@ -42,52 +59,48 @@
       <!-- Modos -->
       <section class="mode-panel">
         <div class="modes" role="group" aria-label="Modos">
-          <button id="modeSeatFromPos" class="mode active" title="¿Qué asiento corresponde a esta posición?">Pos → SIT</button>
-          <button id="modePosFromSeat" class="mode" title="¿Qué posición corresponde a este asiento?">SIT → Pos</button>
-          <button id="modeSeatIP" class="mode" title="¿Está este asiento IP u OOP?">SIT → IP/OOP</button>
+          <button id="modeSeatFromPos" class="mode active" title="¿Asiento?">Pos → SIT</button>
+          <button id="modePosFromSeat" class="mode" title="¿Posición?">SIT → Pos</button>
+          <button id="modeSeatIP" class="mode" title="¿IP () OOP?">SIT → IP/OOP</button>
           <button id="modeIPSeat" class="mode" title="¿Qué asiento está IP/OOP?">IP/OOP → SIT</button>
         </div>
-        <!-- Nomenclatura se ha movido a la fila de controles; esta se elimina para evitar duplicados -->
       </section>
 
+      <!-- Controles -->
       <div class="controls-wrap">
         <div class="controls">
-        <div class="ctrl spinner" id="playersCtrl">
-          <button type="button" id="playersDec" class="spin-btn">&lt;</button>
-          <span class="label">Player</span>
-          <span id="playersVal" class="value">6</span>
-          <button type="button" id="playersInc" class="spin-btn">&gt;</button>
+          <div class="ctrl spinner" id="playersCtrl">
+            <button type="button" id="playersDec" class="spin-btn">&lt;</button>
+            <span class="label">Player</span>
+            <span id="playersVal" class="value">6</span>
+            <button type="button" id="playersInc" class="spin-btn">&gt;</button>
+          </div>
+
+          <div class="ctrl spinner" id="timerCtrl">
+            <button type="button" id="timerDec" class="spin-btn">&lt;</button>
+            <span class="label">Time</span>
+            <span id="timerVal" class="value">10s</span>
+            <button type="button" id="timerInc" class="spin-btn">&gt;</button>
+          </div>
+
+          <div class="ctrl dist-toggle">
+            <button type="button" id="distToggle" class="toggle-dist" aria-label="Alternar distribución">
+              <span class="circle"></span><span class="dist-label">Sesgada</span>
+            </button>
+          </div>
+
+          <!-- Nomenclatura -->
+          <div class="ctrl naming-toggle">
+            <button id="toggleNaming" aria-label="Alternar nomenclatura" title="Alternar nomenclatura (A/B)">
+              Nom: <span id="namingLabel">B</span>
+            </button>
+          </div>
+
+          <div class="ctrl empty"></div>
         </div>
-
-        <div class="ctrl spinner" id="timerCtrl">
-          <button type="button" id="timerDec" class="spin-btn">&lt;</button>
-          <span class="label">Time</span>
-          <span id="timerVal" class="value">10s</span>
-          <button type="button" id="timerInc" class="spin-btn">&gt;</button>
-        </div>
-
-        <div class="ctrl dist-toggle">
-          <button type="button" id="distToggle" class="toggle-dist" aria-label="Alternar distribución">
-            <span class="circle"></span><span class="dist-label">Sesgada</span>
-          </button>
-        </div>
-
-        <!-- Nomenclatura en la misma línea -->
-        <div class="ctrl naming-toggle">
-          <button id="toggleNaming" aria-label="Alternar nomenclatura" title="Alternar nomenclatura (A/B)">
-            Nom: <span id="namingLabel">B</span>
-          </button>
-        </div>
-
-        <div class="ctrl empty"></div>
-        </div><!-- /.controls -->
-      </div><!-- /.controls-wrap -->
-
+      </div>
 
     </main>
-
-    <!-- Controles alineados en una fila con ancho limitado al tablero -->
-    
   </div>
 
   <script src="app.js"></script>
