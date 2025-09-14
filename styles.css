@@ -19,7 +19,8 @@
   /* Ajustar el tamaño de los asientos a valores más grandes para alojar
      las acciones (call, fold, 3bet, OR) en su interior. */
   /* Tamaño de los asientos aumentado para alojar cómodamente las acciones. */
-  --seat-size: 1300vw;
+   --seat-size: 30px;
+    --seat-size: clamp(42px, 9vmin, 72px);
 }
 
 *{ box-sizing:border-box; }
